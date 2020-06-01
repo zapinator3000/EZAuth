@@ -1,0 +1,88 @@
+
+
+This is a simple guide to creating and scheduling events
+Every major action or access to the database should be scheduled in the event queue. 
+This prevents overwriting or mis-matches in encryption keys.
+
+Modified 5/31/2020 
+Author Zackery Painter
+
+
+
+1.) General Usage
+	a.) Create Events
+	b.) Waiting for the event to be triggered
+	c.) Running the event
+	d.) Cleanup
+2.) Event Queue
+	a.) Overview
+	b.) Triggering
+3.) Event Helper
+	a.) Overview
+	b.) Trigger
+4.) Event
+	a.) Status
+
+----------------------------------------------------------------------------------------------
+1.) General Usage
+
+
+	a.) Create Events
+		
+		Creating Events can be done by calling EventQueueHandler's built-in addEventToQueue("Name") function.
+		
+	b.) Waiting for the event to be triggered
+	
+		After this point, your program should wait for your event to be executed. This is done in main by calling startEvent(event)
+		If not in main, you must create a new CountDownLatch and create anew EventQueueHelper instance passing in the event, the queue, and latch
+		Next, it is important that you wait until checkRunStatus(eventId) returns true, signifying it is your turn to execute.
+		Next call latch.await to wait for the event status to actually be changed. 
+		Now, you can execute your event
+
+	c.) Running the event
+	
+		After waiting, you can run whatever you would like and events added while the event is executing will NOT run until the current event is completed
+		
+	d.) Cleanup
+	
+		After execution, you must signify the event has completed. This is NOT automatic, and MUST be done manually!
+		This is done by doing event.setStatus(2)
+		(See event Status)
+
+2.) Event Queue
+	
+	a.) Overview
+		
+		The event queue runs in a separate thread and has it's own clock of 20ms 
+		Events are registered and triggered one at a time
+		
+	b.) Triggering
+	
+		Events are triggered by the event queue by setting the status to 1 for the given event
+		This alone will not execute the event, a helper function is required to execute based on the trigger
+
+3.) Event Helper
+
+	a.) Overview
+		
+		The event helper runs in it's own thread checking the status of the current event. When the event status is set to 1, the thread ends and can be executed.
+	
+	b.) Trigger
+	
+		The event helper is triggered by the event handler. The event handler decrements the thread counter, signaling the execution of the event
+		
+4.) Event
+
+	a.) Status
+		
+		0=Pending (The event is waiting to be executed)
+		1=Executing (The event was triggered and is now executing)
+		2=Completed (The event was executed, and the next event can be executed)
+		
+		
+		
+		
+		
+		
+		
+		

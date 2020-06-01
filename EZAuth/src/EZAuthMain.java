@@ -35,6 +35,10 @@ public class EZAuthMain implements ActionListener {
 		new EZAuthMain();
 	}
 
+	/*
+	 * Create a new instance and show a console
+	 * 
+	 */
 	public EZAuthMain() {
 		accessKey = Key.generateKey();
 		this.serverTicks = 0;
@@ -64,7 +68,7 @@ public class EZAuthMain implements ActionListener {
 				System.out.println("Username: ");
 				String username = myScan.nextLine();
 				this.startEvent(event);
-				
+
 				try {
 					System.out.println("Password: " + userManager.getPass(accessKey, username));
 				} catch (NullPointerException e) {
@@ -93,18 +97,19 @@ public class EZAuthMain implements ActionListener {
 		}
 		this.serverTicks++;
 	}
+
 	public void startEvent(QueueEvent event) {
 		CountDownLatch latch = new CountDownLatch(1);
-		EventQueueHelper helper=new EventQueueHelper(this.eventHandler, event, latch);
+		EventQueueHelper helper = new EventQueueHelper(this.eventHandler, event, latch);
 		helper.start();
 		try {
-			while(!this.eventHandler.checkRunStatus(event.getId()));
+			while (!this.eventHandler.checkRunStatus(event.getId()))
+				;
 			latch.await();
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
-
 
 }
