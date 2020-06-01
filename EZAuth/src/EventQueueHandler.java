@@ -1,50 +1,87 @@
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.HashMap;
+
+import javax.swing.Timer;
 
 import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Validator;
 
-public class EventQueueHandler {
-	private ArrayList<QueueEvent> eventQueue;
+public class EventQueueHandler extends Thread implements ActionListener {
+	private HashMap<Integer, QueueEvent> eventQueue;
 	private int currentEvent;
 	private int lastSize;
+	private int nextInt;
+
 	public EventQueueHandler() {
-		this.eventQueue = new ArrayList<QueueEvent>();
-		int id1=this.addEventToQueue("Dummy");
-		int id2=this.addEventToQueue("Dummy2");
-		this.getEvent(id1).setStatus(2);
-		this.getEvent(id2).setStatus(2);
-		this.currentEvent=2;
-		this.lastSize=this.eventQueue.size();
-		
+		this.eventQueue = new HashMap<Integer, QueueEvent>();
+		this.nextInt = 0;
+		this.currentEvent = 0;
+		this.lastSize = this.eventQueue.size();
+
 	}
 
 	public int addEventToQueue(String name) {
-		int id = this.eventQueue.size() + 1;
 
-		this.eventQueue.add(new QueueEvent(name, id));
-		//System.out.println(this.eventQueue.size());
-		return id;
+		this.eventQueue.put(nextInt, new QueueEvent(name, nextInt));
+		//System.out.println("Event Added:" + nextInt);
+		this.nextInt++;
+		return nextInt - 1;
 	}
 
 	public QueueEvent getEvent(int id) {
-		return this.eventQueue.get(id-1);
+		return this.eventQueue.get(id);
 	}
 
-	public void clockCycle() {
-		//System.out.println("Clock Cycle");
+	public void run() {
+		System.out.println("Started Event Queue");
+		Timer eventTimer = new Timer(20, this);
+		eventTimer.start();
+	}
 
-				if (this.lastSize!=this.eventQueue.size()) {
-					System.out.println("Executing: "+this.currentEvent);
-					QueueEvent event = this.eventQueue.get(this.currentEvent-1);
-					if (event.getStatus() == 0) {
-						event.setStatus(1);
-					}
-					this.lastSize=this.eventQueue.size();
+	public boolean runNext() {
+		// TODO Auto-generated method stub
+		if (this.eventQueue.containsKey(this.currentEvent)) {
+			try {
+				if (this.eventQueue.get(this.currentEvent - 1).getStatus() == 1) {
+					//System.out.println("Waiting for last event...");
+					return false;
+				} else {
+					System.out.println("Triggering: " + this.currentEvent);
+					QueueEvent event = this.eventQueue.get(this.currentEvent);
+					event.runEvent();
 					this.currentEvent++;
-				}else {
-					//System.out.println(this.eventQueue.size());
+					return true;
 				}
+			} catch (NullPointerException e) {
+				System.out.println("Triggering: " + this.currentEvent);
+				QueueEvent event = this.eventQueue.get(this.currentEvent);
+				event.runEvent();
+				this.currentEvent++;
+				return true;
 			}
-		} 
+		}else {
+			return false;
+		}
+	}
+	public boolean checkRunStatus(int check) {
+		if (this.eventQueue.containsKey(check-1)) {
+			if(this.eventQueue.get(check-1).getStatus()==1) {
+				return false;
+			}else {
+				this.runNext();
+				return true;
+				
+			}
+		}else {
+			this.runNext();
+			return true;
+		}
 	
-
+	}
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		this.runNext();
+	}
+}
