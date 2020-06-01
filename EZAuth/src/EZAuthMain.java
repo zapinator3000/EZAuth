@@ -26,7 +26,6 @@ public class EZAuthMain implements ActionListener {
 	private EventQueueHelper eventHelper;
 	private int serverTicks;
 	private final int CHANGE_KEY = 1000;
-	private final int EVENT_FREQ = 100;
 	private static Key accessKey;
 	private UserManager userManager;
 
@@ -75,7 +74,7 @@ public class EZAuthMain implements ActionListener {
 					System.err.println("User does not exist!");
 				}
 			}
-			event.setStatus(2);
+			event.setStatus(2); //You must end the event
 		}
 	}
 
@@ -87,7 +86,7 @@ public class EZAuthMain implements ActionListener {
 		if (this.serverTicks == CHANGE_KEY) {
 			int id = this.eventHandler.addEventToQueue("RollingKey");
 			QueueEvent event = this.eventHandler.getEvent(id);
-			this.startEvent(event);
+			this.eventHandler.EvelatedTrigger();
 			this.accessManager.changeKey(accessKey);
 			Key key = this.accessManager.getCurrentKey(accessKey);
 			this.userManager.reEncrypt(key);

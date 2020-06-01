@@ -17,6 +17,7 @@ Author Zackery Painter
 2.) Event Queue
 	a.) Overview
 	b.) Triggering
+	c.) Elevated Events
 3.) Event Helper
 	a.) Overview
 	b.) Trigger
@@ -60,7 +61,12 @@ Author Zackery Painter
 	
 		Events are triggered by the event queue by setting the status to 1 for the given event
 		This alone will not execute the event, a helper function is required to execute based on the trigger
-
+		
+	c.) Elevated Events
+		
+		Some events can be elevated by calling ElevatedTrigger(). 
+		This bypasses all of the normal safety measures and executes the event immediately, pushing it to the top of the execution list
+		
 3.) Event Helper
 
 	a.) Overview

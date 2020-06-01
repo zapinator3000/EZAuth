@@ -53,30 +53,38 @@ public class EventQueueHandler extends Thread implements ActionListener {
 	 * 
 	 * @returns false if the event failed, true if executed
 	 */
-	public boolean runNext() {
+	public boolean runNext(boolean override) {
 		// TODO Auto-generated method stub
-		if (this.eventQueue.containsKey(this.currentEvent)) {
-			try {
-				if (this.eventQueue.get(this.currentEvent - 1).getStatus() == 1) {
-					// System.out.println("Waiting for last event...");
-					return false;
-				} else {
+		if (override) {
+			System.out.println("Elevated Trigger: " + this.currentEvent);
+			QueueEvent event = this.eventQueue.get(this.currentEvent);
+			event.runEvent();
+			this.currentEvent++;
+		} else {
+			if (this.eventQueue.containsKey(this.currentEvent)) {
+				try {
+					if (this.eventQueue.get(this.currentEvent - 1).getStatus() == 1) {
+						// System.out.println("Waiting for last event...");
+						return false;
+					} else {
+						System.out.println("Triggering: " + this.currentEvent);
+						QueueEvent event = this.eventQueue.get(this.currentEvent);
+						event.runEvent();
+						this.currentEvent++;
+						return true;
+					}
+				} catch (NullPointerException e) {
 					System.out.println("Triggering: " + this.currentEvent);
 					QueueEvent event = this.eventQueue.get(this.currentEvent);
 					event.runEvent();
 					this.currentEvent++;
 					return true;
 				}
-			} catch (NullPointerException e) {
-				System.out.println("Triggering: " + this.currentEvent);
-				QueueEvent event = this.eventQueue.get(this.currentEvent);
-				event.runEvent();
-				this.currentEvent++;
-				return true;
+			} else {
+				return false;
 			}
-		} else {
-			return false;
 		}
+		return false;
 	}
 
 	/*
@@ -92,12 +100,12 @@ public class EventQueueHandler extends Thread implements ActionListener {
 			if (this.eventQueue.get(check - 1).getStatus() == 1) {
 				return false;
 			} else {
-				this.runNext();
+				this.runNext(false);
 				return true;
 
 			}
 		} else {
-			this.runNext();
+			this.runNext(false);
 			return true;
 		}
 
@@ -110,6 +118,10 @@ public class EventQueueHandler extends Thread implements ActionListener {
 	 */
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		this.runNext();
+		this.runNext(false);
+	}
+
+	public void EvelatedTrigger() {
+		this.runNext(true);
 	}
 }
