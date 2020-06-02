@@ -20,7 +20,7 @@ public class EventQueueHelper extends Thread {
 	public void run() {
 		while (this.event.getStatus() == 0) {
 			try {
-				sleep(100);
+				sleep(10);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -28,6 +28,8 @@ public class EventQueueHelper extends Thread {
 		}
 		;
 		this.latch.countDown();
-		System.out.println("Executing: " + this.event.getId());
+		if (EZAuthMain.logLevel == 1) {
+			System.out.println("Executing: " + this.event.getId());
+		}
 	}
 }

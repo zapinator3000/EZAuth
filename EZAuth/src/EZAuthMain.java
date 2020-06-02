@@ -28,7 +28,7 @@ public class EZAuthMain implements ActionListener {
 	private final int CHANGE_KEY = 1000;
 	private static Key accessKey;
 	private UserManager userManager;
-
+	public static int logLevel=3;
 	public static void main(String[] args) {
 
 		new EZAuthMain();
@@ -60,7 +60,7 @@ public class EZAuthMain implements ActionListener {
 				System.out.println("Password: ");
 				String password = myScan.nextLine();
 				this.startEvent(event);
-				userManager.createUser(username, password);
+				this.userManager.createUser(username, password);
 				System.out.println("Done!");
 			}
 			if (nextCmd.equals("Get Password")) {
@@ -74,6 +74,19 @@ public class EZAuthMain implements ActionListener {
 					System.err.println("User does not exist!");
 				}
 			}
+			if (nextCmd.equals("Set LogLevel")) {
+				System.out.println("Log Level: ");
+				String number = myScan.nextLine();
+				logLevel=Integer.parseInt(number);
+			}
+			if(nextCmd.equals("Login")) {
+				System.out.println("Username: ");
+				String username = myScan.nextLine();
+				System.out.println("Password: ");
+				String password = myScan.nextLine();
+				this.userManager.login(username, password);
+
+			}
 			event.setStatus(2); //You must end the event
 		}
 	}
@@ -86,7 +99,7 @@ public class EZAuthMain implements ActionListener {
 		if (this.serverTicks == CHANGE_KEY) {
 			int id = this.eventHandler.addEventToQueue("RollingKey");
 			QueueEvent event = this.eventHandler.getEvent(id);
-			this.eventHandler.EvelatedTrigger();
+			this.startEvent(event);
 			this.accessManager.changeKey(accessKey);
 			Key key = this.accessManager.getCurrentKey(accessKey);
 			this.userManager.reEncrypt(key);

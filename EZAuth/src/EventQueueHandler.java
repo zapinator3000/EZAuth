@@ -18,6 +18,9 @@ public class EventQueueHandler extends Thread implements ActionListener {
 	private int currentEvent;
 	private int lastSize;
 	private int nextInt;
+	private final int CLEANUP_TRIGGER = 3000;
+	private int eventCounter;
+	private int lastClearedState;
 
 	/*
 	 * Construct a new event handler
@@ -27,6 +30,8 @@ public class EventQueueHandler extends Thread implements ActionListener {
 		this.nextInt = 0;
 		this.currentEvent = 0;
 		this.lastSize = this.eventQueue.size();
+		this.eventCounter = 0;
+		this.lastClearedState = 0;
 
 	}
 
@@ -56,7 +61,9 @@ public class EventQueueHandler extends Thread implements ActionListener {
 	public boolean runNext(boolean override) {
 		// TODO Auto-generated method stub
 		if (override) {
-			System.out.println("Elevated Trigger: " + this.currentEvent);
+			if (EZAuthMain.logLevel == 1) {
+				System.out.println("Elevated Trigger: " + this.currentEvent);
+			}
 			QueueEvent event = this.eventQueue.get(this.currentEvent);
 			event.runEvent();
 			this.currentEvent++;
@@ -67,14 +74,18 @@ public class EventQueueHandler extends Thread implements ActionListener {
 						// System.out.println("Waiting for last event...");
 						return false;
 					} else {
-						System.out.println("Triggering: " + this.currentEvent);
+						if (EZAuthMain.logLevel == 1) {
+							System.out.println("Triggering: " + this.currentEvent);
+						}
 						QueueEvent event = this.eventQueue.get(this.currentEvent);
 						event.runEvent();
 						this.currentEvent++;
 						return true;
 					}
 				} catch (NullPointerException e) {
-					System.out.println("Triggering: " + this.currentEvent);
+					if (EZAuthMain.logLevel == 1) {
+						System.out.println("Triggering: " + this.currentEvent);
+					}
 					QueueEvent event = this.eventQueue.get(this.currentEvent);
 					event.runEvent();
 					this.currentEvent++;
@@ -112,12 +123,37 @@ public class EventQueueHandler extends Thread implements ActionListener {
 	}
 
 	/*
-	 * Run the next event on a timer trigger
+	 * Run the next event on a timer trigger And cleanup old events on a scheduled
+	 * routine
 	 * 
 	 * @param e
 	 */
 	@Override
 	public void actionPerformed(ActionEvent e) {
+		if (this.eventCounter == CLEANUP_TRIGGER) {
+			if (EZAuthMain.logLevel == 2) {
+				System.out.println("Running Cleanup on old events");
+			}
+			this.eventCounter = 0;
+			if (this.eventQueue.size() > 10) {
+				if (EZAuthMain.logLevel < 2) {
+					System.out.println("Cleaning old events");
+				}
+				for (int i = this.lastClearedState; i < this.currentEvent; i++) {
+					System.out.println("Removing: " + i);
+					this.eventQueue.remove(i);
+				}
+
+				this.lastClearedState = this.currentEvent;
+			} else {
+				if (EZAuthMain.logLevel < 2) {
+					System.out.println("Skipped Cleaning old events because the total events is less than 10");
+				}
+			}
+		} else {
+			this.eventCounter++;
+		}
+
 		this.runNext(false);
 	}
 
