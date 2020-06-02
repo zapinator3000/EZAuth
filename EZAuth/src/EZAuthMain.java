@@ -29,10 +29,10 @@ public class EZAuthMain implements ActionListener {
 	private static Key accessKey;
 	private UserManager userManager;
 	public static int logLevel=3;
-	public static void main(String[] args) {
+	//public static void main(String[] args) {
 
-		new EZAuthMain();
-	}
+//		new EZAuthMain();
+//	}
 
 	/*
 	 * Create a new instance and show a console
@@ -87,6 +87,7 @@ public class EZAuthMain implements ActionListener {
 				this.userManager.login(username, password);
 
 			}
+			
 			event.setStatus(2); //You must end the event
 		}
 	}

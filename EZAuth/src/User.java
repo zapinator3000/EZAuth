@@ -1,3 +1,8 @@
+
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+
 import com.macasaet.fernet.Key;
 import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Token;
@@ -8,9 +13,11 @@ public class User {
 	private String username;
 	private int uniqueId;
 	private UserManager myUserManager;
+	private PrivateKey privateKey;
+	private PublicKey publicKey;
+	private PublicKey myPublicKey;
 	private final Validator<String> validator = new StringValidator() {
 	};
-
 	public User(String user, String password, UserManager manager) {
 		this.myUserManager = manager;
 		this.password = this.encryptPass(password);
@@ -40,6 +47,22 @@ public class User {
 		}
 	}
 
+	public void setMyPublicKey(PublicKey pubKey) {
+		this.myPublicKey=pubKey;
+	}
+	public void setPrivateKey(PrivateKey privKey) {
+		this.privateKey=privKey;
+	}
+	public PrivateKey getPrivateKey() {
+		return this.privateKey;
+	}
+	
+	public PublicKey getPublicKey() {
+		return this.publicKey;
+	}
+	public PublicKey getMyPublicKey() {
+		return this.myPublicKey;
+	}
 	public String getUsername() {
 		return this.username;
 	}

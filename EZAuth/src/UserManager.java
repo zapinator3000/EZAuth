@@ -1,6 +1,6 @@
 import java.util.ArrayList;
 
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
+
 
 import com.macasaet.fernet.Key;
 import com.macasaet.fernet.TokenValidationException;
