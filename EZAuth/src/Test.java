@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
@@ -10,6 +11,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.ParseException;
 
 import com.macasaet.fernet.Key;
+
+import NetworkConnections.NetworkConnector;
 
 public class Test {
 	public static void main(String[] args) {
@@ -27,13 +30,13 @@ public class Test {
 		KeyPair keys=mgr.GenerateConnectionKey();
 		System.out.println(keys.toString());
 		UserManager usrmgr = new UserManager(accessKey, accessKey);
-		User testUser=new User("Test","Test123",usrmgr);
+		User testUser=new User("Test","This is the password",usrmgr);
 		testUser.setMyPublicKey(keys.getPublic());
 		testUser.setPrivateKey(keys.getPrivate());
 		System.out.print("Test 2 -> Encrypt using RSA : ");
 		String testCipher = null;
 		try {
-			testCipher=mgr.doEncryptRSA("Testing 123", testUser);
+			testCipher=mgr.doEncryptRSA(accessKey.serialise(), testUser);
 			System.out.println(testCipher);
 		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
@@ -46,8 +49,9 @@ public class Test {
 			e.printStackTrace();
 		}
 		System.out.print("Test 3 -> Decrypt using RSA : ");
+		String out=null;
 		try {
-			String out=mgr.doDecryptRSA(testCipher, testUser);
+			out=mgr.doDecryptRSA(testCipher, testUser);
 			System.out.println(out);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -59,6 +63,18 @@ public class Test {
 		try {
 			mgr.executeJSON(jo.toString());
 		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.out.print("Test 5 -> Re-decrypt password with decrypted Token : ");
+		Key outKey = new Key(out);
+		String outPass=testUser.decryptPass(accessKey, outKey);
+		System.out.println(outPass);
+		System.out.println("Done, Starting network...");
+		try {
+			new NetworkConnector(6066).start();
+			
+		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
