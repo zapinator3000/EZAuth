@@ -1,3 +1,4 @@
+package Main;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -42,7 +43,7 @@ public class EZAuthMain implements ActionListener {
 		accessKey = Key.generateKey();
 		this.serverTicks = 0;
 		this.timer = new Timer(10, this);
-		this.accessManager = new AccessManager(accessKey);
+		this.accessManager = new AccessManager(accessKey,this.userManager);
 		this.userManager = new UserManager(accessKey, this.accessManager.getCurrentKey(accessKey));
 		this.timer.start();
 		this.eventHandler = new EventQueueHandler();
@@ -85,7 +86,6 @@ public class EZAuthMain implements ActionListener {
 				System.out.println("Password: ");
 				String password = myScan.nextLine();
 				this.userManager.login(username, password);
-
 			}
 			
 			event.setStatus(2); //You must end the event

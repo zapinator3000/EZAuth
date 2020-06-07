@@ -1,7 +1,10 @@
+package Main;
+import java.net.SocketAddress;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -34,11 +37,18 @@ public class AccessManager {
 	private Key currentKey;
 	private Key finalKey;
 	private JSONObject response;
-	public AccessManager(Key accessKey) {
+	private HashMap<SocketAddress,PrivateKey> privateKeys;
+	private HashMap<SocketAddress,PublicKey> publicKeys;
+	private UserManager userManager;
+	private HashMap<SocketAddress, Key> decryptKeys;
+	
+	public AccessManager(Key accessKey,UserManager usrmgr) {
 		this.finalKey = accessKey;
 		this.setServerTicks((long) 0);
 		this.gameKeys = new HashMap<Key, Long>();
 		this.setCurrentKey(Key.generateKey());
+		this.userManager=usrmgr;
+		this.decryptKeys= new HashMap<SocketAddress,Key>();
 	}
 
 	/*
@@ -102,19 +112,57 @@ public class AccessManager {
 	public void setCurrentKey(Key currentKey) {
 		this.currentKey = currentKey;
 	}
-	public void executeJSON(String command) throws ParseException {
+	/*
+	 * Execute the JSON command and return with the response
+	 * @param command
+	 * @return a JSON response
+	 */
+	public JSONObject executeJSON(String command, SocketAddress ip) throws ParseException {
 		Object Ob=new JSONParser().parse(command);
+		JSONObject out= new JSONObject();
 		JSONObject jsonOb=(JSONObject)Ob;
 		String executeCommand=(String)jsonOb.get("Request");
 		if(executeCommand.equals("LOGIN")) {
+			Key key = new Key((String)jsonOb.get("ACCESS_KEY"));
 			String username=(String)jsonOb.get("USERNAME");
 			String password=(String)jsonOb.get("PASSWORD");
-			String Token =(String)jsonOb.get("TOKEN");
-		}else if(executeCommand.equals("CREATE USER")) {
-			System.out.println("Got Create User");
+		}else if(executeCommand.equals("CREATE_USER")) {
+			Key key = new Key((String)jsonOb.get("ACCESS_KEY"));
+			String username=(String)jsonOb.get("USERNAME");
+			String password=(String)jsonOb.get("PASSWORD");
+			if(this.checkGameValidity(key)) {
+				if(this.userManager.createUser(username, password)) {
+					out.put("RESPONSE", 200);
+				}else {
+					out.put("RESPONSE",1000);
+				}
+			}else {
+				out.put("RESPONSE", 401);
+			}
+			out.put("RESPONSE",200);
+			
 		}else if(executeCommand.equals("CONNECTION")) {
-			System.out.println("Requested Connection");
+			PublicKey publicKey=(PublicKey)jsonOb.get("PUBLIC_KEY");
+			this.publicKeys.put(ip, publicKey);
+			KeyPair keys=null;
+			try {
+				 keys=this.GenerateConnectionKey();
+			} catch (NoSuchAlgorithmException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			this.privateKeys.put(ip,keys.getPrivate());
+			Key decryptionKey = this.generateKey();
+			this.decryptKeys.put(ip,decryptionKey );
+			out.put("RESPONSE", "200");
+			out.put("PUBLIC_KEY", keys.getPublic());
+			out.put("ACCESS_KEY", this.generateKey());
+			out.put("CONNECTION_KEY",decryptionKey);
+		
+		}else {
+			out.put("RESPONSE",501);
 		}
+		return out;
 	}
 	/*
 	 * Encrypt RSA
@@ -123,9 +171,10 @@ public class AccessManager {
 	 * @param user
 	 * @return String
 	 */
-	public String doEncryptRSA(String plainText,User user) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException {
+	public String doEncryptRSA(String plainText,String ip) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException {
 		Cipher encryptCipher = Cipher.getInstance("RSA");
-		encryptCipher.init(Cipher.ENCRYPT_MODE, user.getMyPublicKey());
+		
+		encryptCipher.init(Cipher.ENCRYPT_MODE, this.publicKeys.get(ip));
 		byte[] cipherText = null ;
 		try {
 			cipherText= encryptCipher.doFinal(plainText.getBytes());
@@ -145,11 +194,11 @@ public class AccessManager {
 	 * @param user
 	 * @return string
 	 */
-	public static String doDecryptRSA(String cipherText, User user) throws Exception {
+	public  String doDecryptRSA(String cipherText, String ip) throws Exception {
 	    byte[] bytes = Base64.getDecoder().decode(cipherText);
 
 	    Cipher decriptCipher = Cipher.getInstance("RSA");
-	    decriptCipher.init(Cipher.DECRYPT_MODE, user.getPrivateKey());
+	    decriptCipher.init(Cipher.DECRYPT_MODE, this.privateKeys.get(ip));
 
 	    return new String(decriptCipher.doFinal(bytes));
 	}
@@ -159,7 +208,9 @@ public class AccessManager {
 		KeyPair pair = keyGen.generateKeyPair();
 		return pair;
 	}
-	public void handleNewConnection() {
-		
+	public String decrypt(SocketAddress remoteIp, String token) {
+		Token t = Token.fromString(token);
+		return t.validateAndDecrypt(this.decryptKeys.get(remoteIp),validator);
 	}
+
 }

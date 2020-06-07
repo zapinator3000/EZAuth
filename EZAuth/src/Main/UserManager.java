@@ -1,3 +1,5 @@
+package Main;
+
 import java.util.ArrayList;
 
 
@@ -49,8 +51,14 @@ public class UserManager {
 		
 	}
 
-	public void createUser(String username, String password) {
-		users.add(new User(username, password, this));
+	public boolean createUser(String username, String password) {
+		for(User user: this.users) {
+			if(user.getUsername()==username) {
+				return false;
+			}
+		}
+		this.users.add(new User(username, password, this));
+		return true;
 
 	}
 
