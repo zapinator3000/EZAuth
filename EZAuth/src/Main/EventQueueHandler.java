@@ -142,7 +142,7 @@ public class EventQueueHandler extends Thread implements ActionListener {
 					System.out.println("Cleaning old events");
 				}
 				for (int i = this.lastClearedState; i < this.currentEvent; i++) {
-					System.out.println("Removing: " + i);
+					//System.out.println("Removing: " + i);
 					this.eventQueue.remove(i);
 				}
 

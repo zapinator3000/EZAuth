@@ -26,34 +26,38 @@ public class UserManager {
 		this.previousKey = currentKey;
 	}
 
-	public boolean login(String username, String password) {
+	public String login(String username, String password) {
 
 		String decryptedPass=null;
 		try {
 			 decryptedPass=this.searchForUser(username).decryptPass(accessKey,this.currentKey);
+
 		}catch(TokenValidationException e) {
 			try {
 			 decryptedPass=this.searchForUser(username).decryptPass(accessKey,this.previousKey);
+
 			}catch(TokenValidationException exp){
 				System.err.println("FATAL ERROR: An invalid key was produced! Someone's playing dirty!");
-				return false;
+				return "INVALID_KEY";
 			}
 			
+		}catch(NullPointerException exp) {
+			
 		}
-		if(decryptedPass.equals(password)) {
-			//Log stuff here
-			System.out.println("Logged in!");
-			return true;
-		}else {
-			System.err.println("Password was not correct");
-			return false;
-		}
-		
+		 if(decryptedPass==null) {
+			 return "USER_DOESNT_EXIST";
+		 }else {
+			 if(decryptedPass.equals(password)) {
+				 return "SUCCESS";
+			 }else {
+				 return "PASSWORD_FAIL";
+			 }
+		 }
 	}
 
 	public boolean createUser(String username, String password) {
 		for(User user: this.users) {
-			if(user.getUsername()==username) {
+			if(user.getUsername().equals(username)) {
 				return false;
 			}
 		}

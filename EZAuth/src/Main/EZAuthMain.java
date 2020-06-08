@@ -2,6 +2,7 @@ package Main;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
@@ -12,6 +13,8 @@ import com.macasaet.fernet.Key;
 import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Token;
 import com.macasaet.fernet.Validator;
+
+import NetworkConnections.NetworkConnector;
 
 /*
  * Handles event queues and give a console interface
@@ -25,15 +28,17 @@ public class EZAuthMain implements ActionListener {
 	private AccessManager accessManager;
 	private EventQueueHandler eventHandler;
 	private EventQueueHelper eventHelper;
+	private NetworkConnector network;
 	private int serverTicks;
 	private final int CHANGE_KEY = 1000;
 	private static Key accessKey;
 	private UserManager userManager;
 	public static int logLevel=3;
-	//public static void main(String[] args) {
+	
+	public static void main(String[] args) {
 
-//		new EZAuthMain();
-//	}
+		new EZAuthMain();
+	}
 
 	/*
 	 * Create a new instance and show a console
@@ -43,17 +48,26 @@ public class EZAuthMain implements ActionListener {
 		accessKey = Key.generateKey();
 		this.serverTicks = 0;
 		this.timer = new Timer(10, this);
-		this.accessManager = new AccessManager(accessKey,this.userManager);
+
+		this.accessManager = new AccessManager(accessKey,this.userManager,this);
 		this.userManager = new UserManager(accessKey, this.accessManager.getCurrentKey(accessKey));
+		this.accessManager.setUserMgr(this.userManager);
 		this.timer.start();
-		this.eventHandler = new EventQueueHandler();
-		this.eventHandler.start();
+		this.setEventHandler(new EventQueueHandler());
+		this.getEventHandler().start();
+		try {
+			this.network=new NetworkConnector(6060,this.accessManager);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		this.network.start();
 		Scanner myScan = new Scanner(System.in);
 		while (true) {
 			System.out.println(">>");
 			String nextCmd = myScan.nextLine();
-			int id = this.eventHandler.addEventToQueue("User Input");
-			QueueEvent event = this.eventHandler.getEvent(id);
+			int id = this.getEventHandler().addEventToQueue("User Input");
+			QueueEvent event = this.getEventHandler().getEvent(id);
 
 			if (nextCmd.equals("Create User")) {
 				System.out.println("Username: ");
@@ -98,8 +112,8 @@ public class EZAuthMain implements ActionListener {
 		this.accessManager.update();
 
 		if (this.serverTicks == CHANGE_KEY) {
-			int id = this.eventHandler.addEventToQueue("RollingKey");
-			QueueEvent event = this.eventHandler.getEvent(id);
+			int id = this.getEventHandler().addEventToQueue("RollingKey");
+			QueueEvent event = this.getEventHandler().getEvent(id);
 			this.startEvent(event);
 			this.accessManager.changeKey(accessKey);
 			Key key = this.accessManager.getCurrentKey(accessKey);
@@ -113,16 +127,24 @@ public class EZAuthMain implements ActionListener {
 
 	public void startEvent(QueueEvent event) {
 		CountDownLatch latch = new CountDownLatch(1);
-		EventQueueHelper helper = new EventQueueHelper(this.eventHandler, event, latch);
+		EventQueueHelper helper = new EventQueueHelper(this.getEventHandler(), event, latch);
 		helper.start();
 		try {
-			while (!this.eventHandler.checkRunStatus(event.getId()))
+			while (!this.getEventHandler().checkRunStatus(event.getId()))
 				;
 			latch.await();
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	public EventQueueHandler getEventHandler() {
+		return eventHandler;
+	}
+
+	public void setEventHandler(EventQueueHandler eventHandler) {
+		this.eventHandler = eventHandler;
 	}
 
 }
