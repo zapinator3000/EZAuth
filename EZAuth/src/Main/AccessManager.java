@@ -33,11 +33,13 @@ import org.json.simple.parser.ParseException;
 
 /*
  * This class handles external Access, including rolling keys
+ * This also parses JSON requests (internal and external)
  * @Author Zackery Painter
  * 
  */
 public class AccessManager {
-	private final Validator<String> validator = new StringValidator() {};
+	private final Validator<String> validator = new StringValidator() {
+	};
 	public static int EXPIRATION_COUNT = 30000;
 	private long serverTicks;
 	private HashMap<Key, Long> gameKeys;
@@ -49,6 +51,7 @@ public class AccessManager {
 	private UserManager userManager;
 	private HashMap<String, Key> decryptKeys;
 	private EZAuthMain ezauthMain;
+
 	public AccessManager(Key accessKey, UserManager usrmgr, EZAuthMain ez) {
 		this.finalKey = accessKey;
 		this.setServerTicks((long) 0);
@@ -58,7 +61,7 @@ public class AccessManager {
 		this.decryptKeys = new HashMap<String, Key>();
 		this.publicKeys = new HashMap<String, PublicKey>();
 		this.privateKeys = new HashMap<String, PrivateKey>();
-		this.ezauthMain=ez;
+		this.ezauthMain = ez;
 	}
 
 	/*
@@ -143,42 +146,44 @@ public class AccessManager {
 			Key key = new Key((String) jsonOb.get("ACCESS_KEY"));
 			String username = (String) jsonOb.get("USERNAME");
 			String password = (String) jsonOb.get("PASSWORD");
-			if(this.checkGameValidity(key)) {
-				String tryLogin=this.userManager.login(username, password);
-				if(tryLogin.equals("SUCCESS")) {
+			if (this.checkGameValidity(key)) {
+				String tryLogin = this.userManager.login(username, password);
+				if (tryLogin.equals("SUCCESS")) {
 					out.put("RESPONSE", "200");
-				}else if(tryLogin.equals("PASSWORD_FAIL")){
-					out.put("RESPONSE","1001");
-					out.put("MESSAGE","Your password is incorrect");
-				}else if(tryLogin.equals("USER_DOESNT_EXIST")) {
+				} else if (tryLogin.equals("PASSWORD_FAIL")) {
+					out.put("RESPONSE", "1001");
+					out.put("MESSAGE", "Your password is incorrect");
+				} else if (tryLogin.equals("USER_DOESNT_EXIST")) {
 					out.put("RESPONSE", "1002");
-					out.put("MESSAGE","The user requested does not exist");
-				}else if(tryLogin.equals("INVALID_KEY")) {
-					out.put("RESPONSE","500");
+					out.put("MESSAGE", "The user requested does not exist");
+				} else if (tryLogin.equals("INVALID_KEY")) {
+					out.put("RESPONSE", "500");
 					out.put("MESSAGE", "A Key Mis-match occurred internally");
 				}
-			}else {
-				out.put("RESPONSE","401");
-				out.put("MESSAGE","Your key is invalid or expired");
+			} else {
+				out.put("RESPONSE", "401");
+				out.put("MESSAGE", "Your key is invalid or expired");
 			}
-			encOut=this.encrypt(ip, JSONObject.toJSONString(out));
+			encOut = this.encrypt(ip, JSONObject.toJSONString(out));
 		} else if (executeCommand.equals("CREATE_USER")) {
 			Key key = new Key((String) jsonOb.get("ACCESS_KEY"));
 			String username = (String) jsonOb.get("USERNAME");
 			String password = (String) jsonOb.get("PASSWORD");
+			String email = (String) jsonOb.get("EMAIL");
+
 			if (this.checkGameValidity(key)) {
-				if (this.userManager.createUser(username, password)) {
+				if (this.userManager.createUser(username, password, email)) {
 					out.put("RESPONSE", "200");
-					
+
 				} else {
 					out.put("RESPONSE", "1000");
-					out.put("MESSAGE","The user already exists");
+					out.put("MESSAGE", "The user already exists");
 				}
 			} else {
 				out.put("RESPONSE", "401");
-				out.put("MESSAGE","Your key is invalid or expired");
+				out.put("MESSAGE", "Your key is invalid or expired");
 			}
-			encOut=this.encrypt(ip, JSONObject.toJSONString(out));
+			encOut = this.encrypt(ip, JSONObject.toJSONString(out));
 		} else if (executeCommand.equals("NEW_CONNECTION")) {
 			String pubKey = (String) jsonOb.get("PUBLIC_KEY");
 			KeyFactory factory = null;
@@ -195,9 +200,9 @@ public class AccessManager {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-			PublicKey clientPub=null;
+			PublicKey clientPub = null;
 			try {
-				 clientPub = factory.generatePublic(new X509EncodedKeySpec(byteKey));
+				clientPub = factory.generatePublic(new X509EncodedKeySpec(byteKey));
 			} catch (InvalidKeySpecException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
@@ -205,12 +210,12 @@ public class AccessManager {
 			KeyPair keys = null;
 			try {
 				keys = this.GenerateConnectionKey();
-			//	System.out.println("Generated KeyPair");
+				// System.out.println("Generated KeyPair");
 			} catch (NoSuchAlgorithmException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			//System.out.println(clientPub);
+			// System.out.println(clientPub);
 			this.publicKeys.put(ip, clientPub);
 //			this.privateKeys.put(ip, keys.getPrivate());
 			Key decryptionKey = this.generateKey();
@@ -219,23 +224,42 @@ public class AccessManager {
 			out.put("ACCESS_KEY", this.generateKey().serialise());
 			out.put("DECRYPTION_KEY", decryptionKey.serialise());
 			try {
-				encOut=this.doEncryptRSA(JSONObject.toJSONString(out), ip);
+				encOut = this.doEncryptRSA(JSONObject.toJSONString(out), ip);
 			} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		} else if(executeCommand.equals("PING")){
+		} else if (executeCommand.equals("PING")) {
 			Key key = new Key((String) jsonOb.get("ACCESS_KEY"));
-			if(this.checkGameValidity(key)) {
+			if (this.checkGameValidity(key)) {
 				out.put("RESPONSE", "200");
-			}else {
-				out.put("RESPONSE","401");
-				out.put("MESSAGE","Your Key is invalid or expired");
+			} else {
+				out.put("RESPONSE", "401");
+				out.put("MESSAGE", "Your Key is invalid or expired");
 			}
-			encOut=this.encrypt(ip, JSONObject.toJSONString(out));
-		}else {
-		
-			out.put("RESPONSE", 501);
+			encOut = this.encrypt(ip, JSONObject.toJSONString(out));
+		} else if (executeCommand.equals("CHANGE_PASSWORD")) {
+			Key key = new Key((String) jsonOb.get("ACCESS_KEY"));
+			if (this.checkGameValidity(key)) {
+				String email = (String) jsonOb.get("EMAIL");
+				String newPass = (String) jsonOb.get("NEW_PASSWORD");
+				String oldPassTest = (String) jsonOb.get("OLD_PASS");
+				String res=this.userManager.changePassword(email, oldPassTest, newPass);
+				if (res.equals("SUCCESS")) {
+					out.put("RESPONSE", "200");
+				} else {
+					out.put("RESPONSE", "1003");
+					out.put("MESSAGE", "The old password was incorrect");
+				}
+			} else {
+				out.put("RESPONSE", "401");
+				out.put("MESSAGE", "Your key is invalid or expired");
+			}
+			encOut = this.encrypt(ip, JSONObject.toJSONString(out));
+		} else {
+
+			out.put("RESPONSE", "501");
+			out.put("MESSAGE", "An invalid call was made (Unimplemented)");
 		}
 		event.setStatus(2);
 		return encOut;
@@ -296,20 +320,21 @@ public class AccessManager {
 
 	public String decrypt(String remoteIp, String token) {
 		Token t = Token.fromString(token);
-		//System.out.println("Key: "+this.decryptKeys.get(remoteIp));
-		if(t.isValidSignature(this.decryptKeys.get(remoteIp))) {
-		//	System.out.println("Key is valid!");
-		}else {
-			//System.out.println("Key is invalid!");
+		// System.out.println("Key: "+this.decryptKeys.get(remoteIp));
+		if (t.isValidSignature(this.decryptKeys.get(remoteIp))) {
+			// System.out.println("Key is valid!");
+		} else {
+			// System.out.println("Key is invalid!");
 		}
 		return t.validateAndDecrypt(this.decryptKeys.get(remoteIp), validator);
 	}
+
 	public String encrypt(String remoteIp, String plainText) {
-		return Token.generate(this.decryptKeys.get(remoteIp),plainText).serialise();
+		return Token.generate(this.decryptKeys.get(remoteIp), plainText).serialise();
 	}
 
 	public void setUserMgr(UserManager userManager2) {
 		// TODO Auto-generated method stub
-		this.userManager=userManager2;
+		this.userManager = userManager2;
 	}
 }

@@ -29,6 +29,10 @@ import com.macasaet.fernet.StringValidator;
 import com.macasaet.fernet.Token;
 import com.macasaet.fernet.Validator;
 
+/*
+ * This is just a test client
+ * @Author Zackery Painter
+ */
 public class TestClient {
 	private static JSONObject request;
 	private final static Validator<String> validator = new StringValidator() {
@@ -78,6 +82,7 @@ public class TestClient {
 				response2.put("ACCESS_KEY", accessKey.serialise());
 				response2.put("USERNAME", "JohnSmith");
 				response2.put("PASSWORD", "HelloWorld");
+				response2.put("EMAIL","testEmail@mail.com");
 				String encrtn = Token.generate(decryptionKey, JSONObject.toJSONString(response2)).serialise();
 				// System.out.println("Sending:"+encrtn);
 				outToServer = client.getOutputStream();
@@ -98,7 +103,7 @@ public class TestClient {
 					JSONObject response3 = new JSONObject();
 					response3.put("Request", "LOGIN");
 					response3.put("ACCESS_KEY", accessKey.serialise());
-					response3.put("USERNAME", "JohnSmith");
+					response3.put("USERNAME", "testEmail@mail.com"); //Login through email or password
 					response3.put("PASSWORD", "HelloWorld");
 					 encrtn = Token.generate(decryptionKey, JSONObject.toJSONString(response3)).serialise();
 					// System.out.println("Sending:"+encrtn);

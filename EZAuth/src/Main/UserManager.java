@@ -27,8 +27,11 @@ public class UserManager {
 	}
 
 	public String login(String username, String password) {
-
 		String decryptedPass=null;
+		try {
+			decryptedPass=this.searchForUserFromEmail(username).decryptPass(accessKey, this.currentKey);
+		}catch(NullPointerException err) {
+		
 		try {
 			 decryptedPass=this.searchForUser(username).decryptPass(accessKey,this.currentKey);
 
@@ -43,7 +46,8 @@ public class UserManager {
 			
 		}catch(NullPointerException exp) {
 			
-		}
+		}}
+		
 		 if(decryptedPass==null) {
 			 return "USER_DOESNT_EXIST";
 		 }else {
@@ -53,15 +57,25 @@ public class UserManager {
 				 return "PASSWORD_FAIL";
 			 }
 		 }
+		
 	}
-
-	public boolean createUser(String username, String password) {
+	public String changePassword(String email, String password,String newPassword) {
+		User user = this.searchForUserFromEmail(email);
+		String oldPass=user.decryptPass(this.accessKey, this.currentKey);
+		if(! oldPass.equals(password)) {
+			return "PASSWORD_INCORRECT";
+		}else {
+			user.setPassword(newPassword);
+			return "SUCCESS";
+		}
+	}
+	public boolean createUser(String username, String password,String email) {
 		for(User user: this.users) {
 			if(user.getUsername().equals(username)) {
 				return false;
 			}
 		}
-		this.users.add(new User(username, password, this));
+		this.users.add(new User(username, password, this,email));
 		return true;
 
 	}
@@ -124,7 +138,14 @@ public class UserManager {
 			return "Fail";
 		}
 	}
-
+	public User searchForUserFromEmail(String email) {
+		for(User user : users) {
+			if(user.getEmail().equals(email)) {
+				return user;
+			}
+		}
+		return null;
+	}
 	public User searchForUser(String username) {
 		for (User user : users) {
 			// System.out.println(user.getUsername());

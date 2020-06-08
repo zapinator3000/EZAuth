@@ -74,8 +74,10 @@ public class EZAuthMain implements ActionListener {
 				String username = myScan.nextLine();
 				System.out.println("Password: ");
 				String password = myScan.nextLine();
+				System.out.println("Email: ");
+				String email = myScan.nextLine();
 				this.startEvent(event);
-				this.userManager.createUser(username, password);
+				this.userManager.createUser(username, password,email);
 				System.out.println("Done!");
 			}
 			if (nextCmd.equals("Get Password")) {
@@ -101,7 +103,16 @@ public class EZAuthMain implements ActionListener {
 				String password = myScan.nextLine();
 				this.userManager.login(username, password);
 			}
-			
+			if(nextCmd.equals("Change Password")) {
+				System.out.println("Email: ");
+				String email = myScan.nextLine();
+				System.out.println("Current Password: ");
+				String currentPass=myScan.nextLine();
+				System.out.println("New Password: ");
+				String newPass=myScan.nextLine();
+				String resp=this.userManager.changePassword(email, currentPass, newPass);
+				System.out.println(resp);
+			}
 			event.setStatus(2); //You must end the event
 		}
 	}
