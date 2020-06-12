@@ -18,11 +18,16 @@ import com.macasaet.fernet.Validator;
 public class EventQueueHandler extends Thread implements ActionListener {
 	private HashMap<Integer, QueueEvent> eventQueue;
 	private int currentEvent;
+	private static final int CANCELLED_MAX = 5;
 	private int lastSize;
 	private int nextInt;
 	private final int CLEANUP_TRIGGER = 3000;
 	private int eventCounter;
 	private int lastClearedState;
+	private boolean exit;
+	private static final int TIMEOUT_MAX = 1000;
+	private int queueTimeout;
+	private int cancelledCount;
 
 	/*
 	 * Construct a new event handler
@@ -34,12 +39,13 @@ public class EventQueueHandler extends Thread implements ActionListener {
 		this.lastSize = this.eventQueue.size();
 		this.eventCounter = 0;
 		this.lastClearedState = 0;
-
+		this.exit = false;
+		this.queueTimeout = 0;
 	}
 
 	public int addEventToQueue(String name) {
 
-		this.eventQueue.put(nextInt, new QueueEvent(name, nextInt));
+		this.eventQueue.put(nextInt, new QueueEvent(name, nextInt, TIMEOUT_MAX, this));
 		// System.out.println("Event Added:" + nextInt);
 		this.nextInt++;
 		return nextInt - 1;
@@ -53,6 +59,28 @@ public class EventQueueHandler extends Thread implements ActionListener {
 		System.out.println("Started Event Queue");
 		Timer eventTimer = new Timer(20, this);
 		eventTimer.start();
+
+		while (!this.exit) {
+			try {
+				Thread.sleep(10);
+				for (int id : this.eventQueue.keySet()) {
+					int stat = this.eventQueue.get(id).getStatus();
+					if (stat < 2 && stat != -1) {
+						this.eventQueue.get(id).updateInactiveEvent();
+					}
+				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		System.err.println(">>>>>> Event Handler has been stopped");
+		eventTimer.stop();
+		for (int eventId : this.eventQueue.keySet()) {
+			System.err.println(">>>>>> Canceling Event: " + eventId);
+			this.eventQueue.get(eventId).setStatus(-1);
+		}
+
 	}
 
 	/*
@@ -74,14 +102,36 @@ public class EventQueueHandler extends Thread implements ActionListener {
 				try {
 					if (this.eventQueue.get(this.currentEvent - 1).getStatus() == 1) {
 						// System.out.println("Waiting for last event...");
+						if (this.queueTimeout == this.eventQueue.get(this.currentEvent - 1).getTimeout()) {
+							System.out.println(
+									"Event: " + (this.currentEvent - 1) + " has stalled in the queue, cancelling");
+							this.eventQueue.get(this.currentEvent - 1).setStatus(-1);
+							this.queueTimeout = 0;
+							this.cancelledCount++;
+						} else {
+							this.queueTimeout++;
+						}
 						return false;
 					} else {
 						if (EZAuthMain.logLevel == 1) {
-							System.out.println("Triggering: " + this.currentEvent);
+							System.out.println("Triggering: " + this.currentEvent + " : "
+									+ this.eventQueue.get(this.currentEvent).getEventName());
 						}
 						QueueEvent event = this.eventQueue.get(this.currentEvent);
-						event.runEvent();
-						this.currentEvent++;
+						if (!event.isActive()) {
+							if (event.getInactiveTimeoutCounter() == event.getTimeout()/2) {
+
+								System.out.println("Event Queue: Warn: Not running Event because it wasn't claimed "+event.getId());
+								event.setStatus(-1);
+								this.currentEvent++;
+							}else {
+								event.setInactiveTimeoutCounter(event.getInactiveTimeoutCounter()+1);
+							}
+
+						} else {
+							event.runEvent();
+							this.currentEvent++;
+						}
 						return true;
 					}
 				} catch (NullPointerException e) {
@@ -142,8 +192,10 @@ public class EventQueueHandler extends Thread implements ActionListener {
 					System.out.println("Cleaning old events");
 				}
 				for (int i = this.lastClearedState; i < this.currentEvent; i++) {
-					//System.out.println("Removing: " + i);
-					this.eventQueue.remove(i);
+					// System.out.println("Removing: " + i);
+					if (this.eventQueue.get(i).getStatus() != 0) {
+						this.eventQueue.remove(i);
+					}
 				}
 
 				this.lastClearedState = this.currentEvent;
@@ -155,11 +207,27 @@ public class EventQueueHandler extends Thread implements ActionListener {
 		} else {
 			this.eventCounter++;
 		}
+		if (this.cancelledCount == CANCELLED_MAX) {
+			System.out.println("EVENT QUEUE: WARN: Too many cancelled events, resetting Event counters...");
+			this.nextInt = this.currentEvent;
+			this.cancelledCount = 0;
+		} else {
 
+		}
 		this.runNext(false);
 	}
 
 	public void EvelatedTrigger() {
+
 		this.runNext(true);
+	}
+
+	public void newStop() {
+		this.exit = true;
+	}
+
+	public void timeoutEvent(int id) {
+		this.eventQueue.get(id).setStatus(-1);
+		this.cancelledCount++;
 	}
 }

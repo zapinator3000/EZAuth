@@ -17,12 +17,13 @@ public class UserManager {
 	private ArrayList<User> users;
 	private Key accessKey;
 	private Key previousKey;
-
-	public UserManager(Key accessKey, Key currentKey) {
+	private EZAuthMain ez;
+	public UserManager(Key accessKey, Key currentKey, EZAuthMain eza) {
 		// TODO Auto-generated constructor stub
-		this.setAccessKey(accessKey);
+		this.setAccessKey(Key.generateKey());
 		this.users = new ArrayList<User>();
 		this.currentKey = currentKey;
+		this.setEz(eza);
 		this.previousKey = currentKey;
 	}
 
@@ -134,8 +135,8 @@ public class UserManager {
 			User us = searchForUser(user);
 			return us.decryptPass(this.accessKey, this.currentKey);
 		} else {
-			System.out.println("Fail");
-			return "Fail";
+			this.ez.setKillSwitch("Access Key Violation", 1);
+			return null;
 		}
 	}
 	public User searchForUserFromEmail(String email) {
@@ -156,5 +157,13 @@ public class UserManager {
 		}
 		// System.out.println("Fail");
 		return null;
+	}
+
+	public EZAuthMain getEz() {
+		return ez;
+	}
+
+	public void setEz(EZAuthMain ez) {
+		this.ez = ez;
 	}
 }

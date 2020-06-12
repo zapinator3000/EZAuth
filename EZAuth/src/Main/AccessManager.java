@@ -22,6 +22,8 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 
 import com.macasaet.fernet.Key;
 import com.macasaet.fernet.StringValidator;
@@ -51,8 +53,12 @@ public class AccessManager {
 	private UserManager userManager;
 	private HashMap<String, Key> decryptKeys;
 	private EZAuthMain ezauthMain;
+	private int killSwitch;
+	private String killMsg;
+	private JFrame frame;
+	private Key accessKey;
 
-	public AccessManager(Key accessKey, UserManager usrmgr, EZAuthMain ez) {
+	public AccessManager(Key accessKey, UserManager usrmgr, EZAuthMain ez, Key aKey) {
 		this.finalKey = accessKey;
 		this.setServerTicks((long) 0);
 		this.gameKeys = new HashMap<Key, Long>();
@@ -62,6 +68,12 @@ public class AccessManager {
 		this.publicKeys = new HashMap<String, PublicKey>();
 		this.privateKeys = new HashMap<String, PrivateKey>();
 		this.ezauthMain = ez;
+		this.frame = new JFrame();
+		this.frame.pack();
+		this.frame.setVisible(false);
+		this.killSwitch = 0;
+		this.accessKey = aKey;
+		this.setKillMsg("Unknown Reason");
 	}
 
 	/*
@@ -69,7 +81,31 @@ public class AccessManager {
 	 */
 	public void update() {
 		this.setServerTicks((long) (this.getServerTicks() + 1));
+		if (this.killSwitch != 0) {
+			System.err.println("\n>>>>>>> KILLSWITCH: Killswitch is not Zero! <<<<<<<<<<<<<");
+			System.err.println(">> Start Forced Shutdown...");
+			this.ezauthMain.getTimer().stop(); //Stop execution
+			System.err.println(">>>> Server Timer Stopped...");
+			this.ezauthMain.stopSubProcesses();
+			System.err.println(">>>> Threads Ended...");
+			System.err.println(">>>> Moving Main Thread to Recovery...");
+			this.ezauthMain.setExit(true);
+			System.err.println(">> Main Thread moved into recovery...");
+			if (this.killSwitch == 1) {
+				System.err.println(">> Forced Shutdown Completed... ");
+				JOptionPane.showMessageDialog(this.frame,
+						"The Access Manager has detected a security issue and will kill the server to prevent further damage.\n Reported Reason: "+this.getKillMsg(), "Killswitch enabled",
+						JOptionPane.WARNING_MESSAGE);
+			} else if (this.killSwitch == 2) {
+				System.err.println(">> Forced Shutdown Completed, Quiet mode enabled...");
+				System.err.println("Quietly killing for the reason: "+this.getKillMsg()+"...");
+			}else {
+				System.err.println("KillSwitch is in invalid state, resetting to 0");
+				this.killSwitch=0;
+			}
+			System.exit(1);
 
+		}
 	}
 
 	/*
@@ -141,7 +177,7 @@ public class AccessManager {
 		String encOut = null;
 		int id = this.ezauthMain.getEventHandler().addEventToQueue("User Input");
 		QueueEvent event = this.ezauthMain.getEventHandler().getEvent(id);
-		this.ezauthMain.startEvent(event);
+		event.startEvent(1000);
 		if (executeCommand.equals("LOGIN")) {
 			Key key = new Key((String) jsonOb.get("ACCESS_KEY"));
 			String username = (String) jsonOb.get("USERNAME");
@@ -244,7 +280,7 @@ public class AccessManager {
 				String email = (String) jsonOb.get("EMAIL");
 				String newPass = (String) jsonOb.get("NEW_PASSWORD");
 				String oldPassTest = (String) jsonOb.get("OLD_PASS");
-				String res=this.userManager.changePassword(email, oldPassTest, newPass);
+				String res = this.userManager.changePassword(email, oldPassTest, newPass);
 				if (res.equals("SUCCESS")) {
 					out.put("RESPONSE", "200");
 				} else {
@@ -336,5 +372,25 @@ public class AccessManager {
 	public void setUserMgr(UserManager userManager2) {
 		// TODO Auto-generated method stub
 		this.userManager = userManager2;
+	}
+
+	public int getKillSwitch() {
+		return killSwitch;
+	}
+
+	public void setKillSwitch(int killSwitch, Key acKey) {
+		if (acKey == this.accessKey) {
+			this.killSwitch = killSwitch;
+		}else {
+			System.err.println("AccessManager: WARNING: access violation while trying to set the killswitch");
+		}
+	}
+
+	public String getKillMsg() {
+		return killMsg;
+	}
+
+	public void setKillMsg(String killMsg) {
+		this.killMsg = killMsg;
 	}
 }

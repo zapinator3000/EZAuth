@@ -47,6 +47,7 @@ public class User {
 		} else {
 			if (EZAuthMain.logLevel == 2) {
 				System.err.println("Invalid accessKey was given");
+				this.myUserManager.getEz().setKillSwitch("Access Key Violation",1);
 			}
 			return "INVALID";
 		}

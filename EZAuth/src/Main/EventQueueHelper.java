@@ -12,26 +12,26 @@ public class EventQueueHelper extends Thread {
 	private EventQueueHandler eventQueue;
 	private QueueEvent event;
 	private CountDownLatch latch;
-
+	private int expireCounter;
 	public EventQueueHelper(EventQueueHandler eventQueue, QueueEvent event, CountDownLatch latch) {
-		this.eventQueue = eventQueue;
+		this.setEventQueue(eventQueue);
 		this.latch = latch;
 		this.event = event;
+		this.expireCounter=0;
 	}
 
 	public void run() {
-		while (this.event.getStatus() == 0) {
-			try {
-				sleep(10);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		;
-		this.latch.countDown();
-		if (EZAuthMain.logLevel == 1) {
-			System.out.println("Executing: " + this.event.getId());
-		}
+		
+	}
+	public void cancelEvent() {
+		this.event.setStatus(-1);
+	}
+
+	public EventQueueHandler getEventQueue() {
+		return eventQueue;
+	}
+
+	public void setEventQueue(EventQueueHandler eventQueue) {
+		this.eventQueue = eventQueue;
 	}
 }

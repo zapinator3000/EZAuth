@@ -20,11 +20,12 @@ import Main.EZAuthMain;
 public class NetworkConnector extends Thread {
 	private ServerSocket socketServer;
 	private AccessManager accessManager;
-
+	private boolean exit;
 	public NetworkConnector(int port, AccessManager acm) throws IOException {
 		socketServer = new ServerSocket(port);
 		socketServer.setSoTimeout(10000);
 		this.accessManager = acm;
+		this.exit=false;
 		System.out.println("Network Connections Manager has been created");
 	}
 
@@ -37,7 +38,7 @@ public class NetworkConnector extends Thread {
 	public void run() {
 		System.out.println("Network Connections Manager has been started");
 		System.out.println("Waiting for you new connections: " + socketServer.getLocalPort());
-		while (true) {
+		while (!this.exit) {
 			try {
 				Socket server = socketServer.accept();
 				SocketAddress remoteIp = server.getRemoteSocketAddress();
@@ -104,6 +105,9 @@ public class NetworkConnector extends Thread {
 				e.printStackTrace();
 			}
 		}
+		System.err.println(">>>>>> Network Connector has been stopped");
 	}
-
+	public void newStop() {
+		this.exit = true;
+	}
 }
