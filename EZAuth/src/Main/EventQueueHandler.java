@@ -28,6 +28,8 @@ public class EventQueueHandler extends Thread implements ActionListener {
 	private static final int TIMEOUT_MAX = 1000;
 	private int queueTimeout;
 	private int cancelledCount;
+	private static final int RESET_TRIGGER = 4000;
+	private int counter;
 
 	/*
 	 * Construct a new event handler
@@ -41,6 +43,7 @@ public class EventQueueHandler extends Thread implements ActionListener {
 		this.lastClearedState = 0;
 		this.exit = false;
 		this.queueTimeout = 0;
+		this.counter = 0;
 	}
 
 	public int addEventToQueue(String name) {
@@ -108,6 +111,7 @@ public class EventQueueHandler extends Thread implements ActionListener {
 							this.eventQueue.get(this.currentEvent - 1).setStatus(-1);
 							this.queueTimeout = 0;
 							this.cancelledCount++;
+							
 						} else {
 							this.queueTimeout++;
 						}
@@ -119,13 +123,14 @@ public class EventQueueHandler extends Thread implements ActionListener {
 						}
 						QueueEvent event = this.eventQueue.get(this.currentEvent);
 						if (!event.isActive()) {
-							if (event.getInactiveTimeoutCounter() == event.getTimeout()/2) {
+							if (event.getInactiveTimeoutCounter() == event.getTimeout() / 2) {
 
-								System.out.println("Event Queue: Warn: Not running Event because it wasn't claimed "+event.getId());
+								System.out.println("Event Queue: Warn: Not running Event because it wasn't claimed "
+										+ event.getId());
 								event.setStatus(-1);
 								this.currentEvent++;
-							}else {
-								event.setInactiveTimeoutCounter(event.getInactiveTimeoutCounter()+1);
+							} else {
+								event.setInactiveTimeoutCounter(event.getInactiveTimeoutCounter() + 1);
 							}
 
 						} else {
@@ -211,6 +216,9 @@ public class EventQueueHandler extends Thread implements ActionListener {
 			System.out.println("EVENT QUEUE: WARN: Too many cancelled events, resetting Event counters...");
 			this.nextInt = this.currentEvent;
 			this.cancelledCount = 0;
+		} else if (this.counter == RESET_TRIGGER) {
+			
+			
 		} else {
 
 		}
