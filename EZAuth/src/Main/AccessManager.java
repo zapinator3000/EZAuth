@@ -57,6 +57,7 @@ public class AccessManager {
 	private String killMsg;
 	private JFrame frame;
 	private Key accessKey;
+	private int eventClientID;
 
 	public AccessManager(Key accessKey, UserManager usrmgr, EZAuthMain ez, Key aKey) {
 		this.finalKey = accessKey;
@@ -77,6 +78,13 @@ public class AccessManager {
 	}
 
 	/*
+	 * Fix Null Pointer by forcing ID to be generated after EZAuth init
+	 */
+	public void finishInit() {
+		this.eventClientID = this.ezauthMain.getEventHandler().getEventID();
+	}
+
+	/*
 	 * Update the ticks
 	 */
 	public void update() {
@@ -84,7 +92,7 @@ public class AccessManager {
 		if (this.killSwitch != 0) {
 			System.err.println("\n>>>>>>> KILLSWITCH: Killswitch is not Zero! <<<<<<<<<<<<<");
 			System.err.println(">> Start Forced Shutdown...");
-			this.ezauthMain.getTimer().stop(); //Stop execution
+			this.ezauthMain.getTimer().stop(); // Stop execution
 			System.err.println(">>>> Server Timer Stopped...");
 			this.ezauthMain.stopSubProcesses();
 			System.err.println(">>>> Threads Ended...");
@@ -94,14 +102,15 @@ public class AccessManager {
 			if (this.killSwitch == 1) {
 				System.err.println(">> Forced Shutdown Completed... ");
 				JOptionPane.showMessageDialog(this.frame,
-						"The Access Manager has detected a security issue and will kill the server to prevent further damage.\n Reported Reason: "+this.getKillMsg(), "Killswitch enabled",
-						JOptionPane.WARNING_MESSAGE);
+						"The Access Manager has detected a security issue and will kill the server to prevent further damage.\n Reported Reason: "
+								+ this.getKillMsg(),
+						"Killswitch enabled", JOptionPane.WARNING_MESSAGE);
 			} else if (this.killSwitch == 2) {
 				System.err.println(">> Forced Shutdown Completed, Quiet mode enabled...");
-				System.err.println("Quietly killing for the reason: "+this.getKillMsg()+"...");
-			}else {
+				System.err.println("Quietly killing for the reason: " + this.getKillMsg() + "...");
+			} else {
 				System.err.println("KillSwitch is in invalid state, resetting to 0");
-				this.killSwitch=0;
+				this.killSwitch = 0;
 			}
 			System.exit(1);
 
@@ -128,20 +137,38 @@ public class AccessManager {
 		}
 	}
 
+	/*
+	 * Generate a new game key
+	 * 
+	 * @return key
+	 */
 	public Key generateKey() {
 		Key key = Key.generateKey();
 		this.gameKeys.put(key, getServerTicks());
 		return key;
 	}
 
+	/*
+	 * get the current server ticks
+	 * 
+	 * @return serverTIcks
+	 */
 	public long getServerTicks() {
 		return serverTicks;
 	}
 
+	/*
+	 * set server ticks
+	 * 
+	 * @param serverTicks
+	 */
 	public void setServerTicks(Long serverTicks) {
 		this.serverTicks = serverTicks;
 	}
 
+	/*
+	 * Change the access key
+	 */
 	public void changeKey(Key accessKey) {
 		if (!accessKey.equals(this.finalKey)) {
 			System.err.println("Correct key not provided!");
@@ -150,6 +177,9 @@ public class AccessManager {
 		}
 	}
 
+	/*
+	 * get the current accessKey
+	 */
 	public Key getCurrentKey(Key accessKey) {
 		if (accessKey.equals(this.finalKey)) {
 			return currentKey;
@@ -158,6 +188,9 @@ public class AccessManager {
 		}
 	}
 
+	/*
+	 * Set the current Key
+	 */
 	public void setCurrentKey(Key currentKey) {
 		this.currentKey = currentKey;
 	}
@@ -175,7 +208,8 @@ public class AccessManager {
 		JSONObject jsonOb = (JSONObject) Ob;
 		String executeCommand = (String) jsonOb.get("Request");
 		String encOut = null;
-		int id = this.ezauthMain.getEventHandler().addEventToQueue("User Input");
+		int clientID = this.ezauthMain.getEventHandler().getEventID();
+		int id = this.ezauthMain.getEventHandler().addEventToQueue("User Input", clientID);
 		QueueEvent event = this.ezauthMain.getEventHandler().getEvent(id);
 		event.startEvent(1000);
 		if (executeCommand.equals("LOGIN")) {
@@ -347,6 +381,11 @@ public class AccessManager {
 		return new String(decriptCipher.doFinal(bytes));
 	}
 
+	/*
+	 * Generate a new Connection Keypair
+	 * 
+	 * @return pair
+	 */
 	public KeyPair GenerateConnectionKey() throws NoSuchAlgorithmException {
 		KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
 		keyGen.initialize(2048, new SecureRandom());
@@ -354,6 +393,9 @@ public class AccessManager {
 		return pair;
 	}
 
+	/*
+	 * Decrypt a general message Using Fernet
+	 */
 	public String decrypt(String remoteIp, String token) {
 		Token t = Token.fromString(token);
 		// System.out.println("Key: "+this.decryptKeys.get(remoteIp));
@@ -365,31 +407,49 @@ public class AccessManager {
 		return t.validateAndDecrypt(this.decryptKeys.get(remoteIp), validator);
 	}
 
+	/*
+	 * Encrypt a message using Fernet
+	 */
 	public String encrypt(String remoteIp, String plainText) {
 		return Token.generate(this.decryptKeys.get(remoteIp), plainText).serialise();
 	}
 
+	/*
+	 * Set the user manager to point to
+	 */
 	public void setUserMgr(UserManager userManager2) {
 		// TODO Auto-generated method stub
 		this.userManager = userManager2;
 	}
 
+	/*
+	 * Return the killswitch status
+	 */
 	public int getKillSwitch() {
 		return killSwitch;
 	}
 
+	/*
+	 * Set the kill switch
+	 */
 	public void setKillSwitch(int killSwitch, Key acKey) {
 		if (acKey == this.accessKey) {
 			this.killSwitch = killSwitch;
-		}else {
+		} else {
 			System.err.println("AccessManager: WARNING: access violation while trying to set the killswitch");
 		}
 	}
 
+	/*
+	 * Return the killswitch message
+	 */
 	public String getKillMsg() {
 		return killMsg;
 	}
 
+	/*
+	 * Set the kill message
+	 */
 	public void setKillMsg(String killMsg) {
 		this.killMsg = killMsg;
 	}

@@ -4,6 +4,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 
 import javax.swing.Timer;
 
@@ -25,11 +26,14 @@ public class EventQueueHandler extends Thread implements ActionListener {
 	private int eventCounter;
 	private int lastClearedState;
 	private boolean exit;
-	private static final int TIMEOUT_MAX = 1000;
+	private static final int TIMEOUT_MAX = 500;
 	private int queueTimeout;
 	private int cancelledCount;
 	private static final int RESET_TRIGGER = 4000;
+	private static final int MAX_FAILS = 5;
 	private int counter;
+	private ArrayList<Integer> eventClientIDs;
+	private HashMap<Integer, Integer> ClientFails;
 
 	/*
 	 * Construct a new event handler
@@ -44,20 +48,56 @@ public class EventQueueHandler extends Thread implements ActionListener {
 		this.exit = false;
 		this.queueTimeout = 0;
 		this.counter = 0;
+		this.eventClientIDs = new ArrayList<Integer>();
+		this.ClientFails = new HashMap<Integer, Integer>();
+
 	}
 
-	public int addEventToQueue(String name) {
+	/*
+	 * Add an event to the queue
+	 */
+	public int addEventToQueue(String name, int caller) {
 
-		this.eventQueue.put(nextInt, new QueueEvent(name, nextInt, TIMEOUT_MAX, this));
+		this.eventQueue.put(nextInt, new QueueEvent(name, nextInt, TIMEOUT_MAX, this, caller));
 		// System.out.println("Event Added:" + nextInt);
 		this.nextInt++;
 		return nextInt - 1;
 	}
 
+	/*
+	 * Get the event
+	 */
 	public QueueEvent getEvent(int id) {
 		return this.eventQueue.get(id);
 	}
 
+	/*
+	 * Get an ID to create an Event
+	 * 
+	 * @return integer
+	 */
+	public int getEventID() {
+		Random rdm = new Random();
+		int randEvent = rdm.nextInt();
+		this.eventClientIDs.add(randEvent);
+		this.ClientFails.put(randEvent, 0);
+		return randEvent;
+	}
+
+	/*
+	 * See if the event ID exists
+	 */
+	public boolean checkEventID(int eventID) {
+		if (this.eventClientIDs.contains(eventID)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/*
+	 * Start the subprocess
+	 */
 	public void run() {
 		System.out.println("Started Event Queue");
 		Timer eventTimer = new Timer(20, this);
@@ -103,6 +143,7 @@ public class EventQueueHandler extends Thread implements ActionListener {
 		} else {
 			if (this.eventQueue.containsKey(this.currentEvent)) {
 				try {
+
 					if (this.eventQueue.get(this.currentEvent - 1).getStatus() == 1) {
 						// System.out.println("Waiting for last event...");
 						if (this.queueTimeout == this.eventQueue.get(this.currentEvent - 1).getTimeout()) {
@@ -111,7 +152,16 @@ public class EventQueueHandler extends Thread implements ActionListener {
 							this.eventQueue.get(this.currentEvent - 1).setStatus(-1);
 							this.queueTimeout = 0;
 							this.cancelledCount++;
-							
+							QueueEvent prevEvent = this.eventQueue.get(this.currentEvent - 1);
+							int fails = ClientFails.get(prevEvent.getCaller()) + 1;
+
+							this.ClientFails.put(prevEvent.getCaller(), fails);
+							if (fails == MAX_FAILS) {
+								this.eventClientIDs.remove(this.eventClientIDs.indexOf(prevEvent.getCaller()));
+								System.out.println(
+										"Event Queue: ERROR: Too many fails from this client, removing client from Authorized list: "
+												+ prevEvent.getCaller());
+							}
 						} else {
 							this.queueTimeout++;
 						}
@@ -123,8 +173,17 @@ public class EventQueueHandler extends Thread implements ActionListener {
 						}
 						QueueEvent event = this.eventQueue.get(this.currentEvent);
 						if (!event.isActive()) {
-							if (event.getInactiveTimeoutCounter() == event.getTimeout() / 2) {
+							if (event.getInactiveTimeoutCounter() == event.getTimeout() / 4) {
 
+								int fails = ClientFails.get(event.getCaller()) + 1;
+
+								this.ClientFails.put(event.getCaller(), fails);
+								if (fails == MAX_FAILS) {
+									this.eventClientIDs.remove(this.eventClientIDs.indexOf(event.getCaller()));
+									System.out.println(
+											"Event Queue: ERROR: Too many fails from this client, removing client from Authorized list: "
+													+ event.getCaller());
+								}
 								System.out.println("Event Queue: Warn: Not running Event because it wasn't claimed "
 										+ event.getId());
 								event.setStatus(-1);
@@ -134,7 +193,12 @@ public class EventQueueHandler extends Thread implements ActionListener {
 							}
 
 						} else {
-							event.runEvent();
+							if (this.eventClientIDs.contains(event.getCaller())) {
+								event.runEvent();
+							} else {
+								System.out.println("EventQueue: Error: Event Client not registered");
+								event.setStatus(-1);
+							}
 							this.currentEvent++;
 						}
 						return true;
@@ -144,7 +208,13 @@ public class EventQueueHandler extends Thread implements ActionListener {
 						System.out.println("Triggering: " + this.currentEvent);
 					}
 					QueueEvent event = this.eventQueue.get(this.currentEvent);
-					event.runEvent();
+
+					if (this.eventClientIDs.contains(event.getCaller())) {
+						event.runEvent();
+					} else {
+						System.out.println("EventQueue: Error: Event Client not registered");
+						event.setStatus(-1);
+					}
 					this.currentEvent++;
 					return true;
 				}
@@ -217,23 +287,31 @@ public class EventQueueHandler extends Thread implements ActionListener {
 			this.nextInt = this.currentEvent;
 			this.cancelledCount = 0;
 		} else if (this.counter == RESET_TRIGGER) {
-			
-			
+
 		} else {
 
 		}
 		this.runNext(false);
 	}
 
+	/*
+	 * Elevate Trigger
+	 */
 	public void EvelatedTrigger() {
 
 		this.runNext(true);
 	}
 
+	/*
+	 * Stop the event
+	 */
 	public void newStop() {
 		this.exit = true;
 	}
 
+	/*
+	 * Timeout the event
+	 */
 	public void timeoutEvent(int id) {
 		this.eventQueue.get(id).setStatus(-1);
 		this.cancelledCount++;

@@ -22,6 +22,7 @@ public class QueueEvent extends Thread {
 	private int expireCounter;
 	private int inactiveTimeoutCounter;
 	private boolean active;
+	private int caller;
 
 	/*
 	 * Construct a new Event
@@ -30,7 +31,7 @@ public class QueueEvent extends Thread {
 	 * 
 	 * @param id
 	 */
-	public QueueEvent(String name, int id, int t, EventQueueHandler eventQueue) {
+	public QueueEvent(String name, int id, int t, EventQueueHandler eventQueue, int caller) {
 		this.setEventName(name);
 		this.setId(id);
 		this.status = 0;
@@ -43,6 +44,7 @@ public class QueueEvent extends Thread {
 		this.eventQueue = eventQueue;
 		this.setInactiveTimeoutCounter(0);
 		this.setActive(false);
+		this.setCaller(caller);
 		if (EZAuthMain.logLevel < 2) {
 			System.out.println("Event created " + this.id);
 		}
@@ -186,5 +188,13 @@ public class QueueEvent extends Thread {
 	}
 	public void claimEvent() {
 		this.active=true;
+	}
+
+	public int getCaller() {
+		return caller;
+	}
+
+	public void setCaller(int caller) {
+		this.caller = caller;
 	}
 }

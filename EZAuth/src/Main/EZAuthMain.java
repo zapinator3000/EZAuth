@@ -3,6 +3,8 @@ package Main;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
@@ -36,6 +38,11 @@ public class EZAuthMain implements ActionListener {
 	public static int logLevel = 3;
 	private boolean exit;
 	private static ArrayList<String> helpList = new ArrayList<String>();
+	private String startingKey;
+	private Key backupKey;
+	private String startTime;
+	private int eventClientID;
+	private int rollingKeyEventID;
 
 	public static void main(String[] args) {
 		helpList.add("Help Menu: ");
@@ -46,6 +53,7 @@ public class EZAuthMain implements ActionListener {
 		helpList.add("change password -> Change the password of a user");
 		helpList.add("kill -> Enable killswitch");
 		helpList.add("help -> Show this menu");
+		helpList.add("test changeKey -> Test the failsafe");
 		new EZAuthMain();
 	}
 
@@ -54,7 +62,12 @@ public class EZAuthMain implements ActionListener {
 	 * 
 	 */
 	public EZAuthMain() {
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+		this.startTime = dtf.format(LocalDateTime.now());
 		accessKey = Key.generateKey();
+		Key tmp = accessKey;
+		startingKey = tmp.serialise() + "===" + CHANGE_KEY + startTime;
+		backupKey = accessKey;
 		this.serverTicks = 0;
 		this.setTimer(new Timer(10, this));
 		this.setExit(false);
@@ -64,6 +77,7 @@ public class EZAuthMain implements ActionListener {
 		this.getTimer().start();
 		this.setEventHandler(new EventQueueHandler());
 		this.getEventHandler().start();
+		this.rollingKeyEventID = this.eventHandler.getEventID();
 		try {
 			this.network = new NetworkConnector(6060, this.accessManager);
 		} catch (IOException e1) {
@@ -71,11 +85,13 @@ public class EZAuthMain implements ActionListener {
 			e1.printStackTrace();
 		}
 		this.network.start();
+		this.eventClientID = this.eventHandler.getEventID();
+		this.accessManager.finishInit(); // Fix Null Pointer
 		Scanner myScan = new Scanner(System.in);
 		while (!this.isExit()) {
 			System.out.print("\n>> ");
 			String nextCmd = myScan.nextLine();
-			int id = this.getEventHandler().addEventToQueue("Console Command Input");
+			int id = this.getEventHandler().addEventToQueue("Console Command Input", this.eventClientID);
 			QueueEvent event = this.getEventHandler().getEvent(id);
 
 			if (nextCmd.equals("create user")) {
@@ -146,6 +162,11 @@ public class EZAuthMain implements ActionListener {
 					System.out.println(helpItem);
 				}
 			}
+			if (nextCmd.equals("test changeKey")) {
+				event.claimEvent();
+				System.out.println("Changing Key to test failsafe");
+				accessKey = Key.generateKey();
+			}
 			event.setStatus(2); // You must end the event
 		}
 		this.exit = false;
@@ -171,13 +192,20 @@ public class EZAuthMain implements ActionListener {
 		}
 	}
 
+	/*
+	 * This is the timed loop that executes from the server clock
+	 */
 	@Override
 	public void actionPerformed(ActionEvent arg0) {
 		// TODO Auto-generated method stub
 		this.accessManager.update();
-
+		String tmp = accessKey.serialise() + "===" + CHANGE_KEY + startTime;
+		if (!tmp.equals(startingKey)) {
+			this.accessManager.setKillMsg("Un-Authorized Access Key Modification");
+			this.accessManager.setKillSwitch(1, backupKey);
+		}
 		if (this.serverTicks == CHANGE_KEY) {
-			int id = this.getEventHandler().addEventToQueue("Rolling Key Update");
+			int id = this.getEventHandler().addEventToQueue("Rolling Key Update", this.rollingKeyEventID);
 			QueueEvent event = this.getEventHandler().getEvent(id);
 			event.startEvent(1000);
 			this.accessManager.changeKey(accessKey);
@@ -190,39 +218,67 @@ public class EZAuthMain implements ActionListener {
 		this.serverTicks++;
 	}
 
-	
-
+	/*
+	 * Get the Main Event Handler
+	 * 
+	 * @return eventHandler
+	 */
 	public EventQueueHandler getEventHandler() {
 		return eventHandler;
 	}
 
+	/*
+	 * Set the Event Handler
+	 * 
+	 * @param eventHandler
+	 */
 	public void setEventHandler(EventQueueHandler eventHandler) {
 		this.eventHandler = eventHandler;
 	}
 
+	/*
+	 * Set the Kill Switch level and reason
+	 */
 	public void setKillSwitch(String reason, int level) {
 		this.accessManager.setKillMsg(reason);
 		this.accessManager.setKillSwitch(level, accessKey);
 	}
 
+	/*
+	 * Get the timer of the server
+	 * 
+	 * @return timer
+	 */
 	public Timer getTimer() {
 		return timer;
 	}
 
+	/*
+	 * Set the timer of the server
+	 */
 	public void setTimer(Timer timer) {
 		this.timer = timer;
 	}
 
+	/*
+	 * Stop all functions of the server
+	 */
 	public void stopSubProcesses() {
 		this.eventHandler.newStop();
 		this.network.newStop();
 
 	}
 
+	/*
+	 * @return true if the server exits
+	 */
 	public boolean isExit() {
 		return exit;
 	}
 
+	/*
+	 * Set to true if you want to exit the system
+	 */
 	public void setExit(boolean exit) {
 		this.exit = exit;
 	}
